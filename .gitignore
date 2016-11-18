@@ -1,0 +1,8 @@
+!src/
+*.bin
+*.hex
+.project
+.settings/
+bin/
+.classpath
+
