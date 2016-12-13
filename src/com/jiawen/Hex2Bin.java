@@ -31,11 +31,10 @@ public class Hex2Bin {
 	private final static int REC_TYPE_START_LINEAR_ADDR = 5;
 
 	public static void main(String[] args) {
-		if (args.length < 2) {
-			System.err.printf("usage: hex2bin in.hex out.bin \n");
+		if (args.length < 2 || args.length > 3) {
+			System.err.printf("usage: hex2bin in.hex out.bin [-offset]\n");
 			System.exit(-1);
 		}
-
 		File inFile = new File(args[0]);
 		File outFile = new File(args[1]);
 		BufferedReader reader = null;
@@ -52,6 +51,10 @@ public class Hex2Bin {
 		int recType = 0;
 		int b;
 		int startExecution = 0; // start address;
+		boolean ifoffset = false;
+		if (args[2].equals("-offset")) {
+			ifoffset = true;
+		}
 
 		// hashset
 		Set set = new HashSet<Integer>();
@@ -123,7 +126,9 @@ public class Hex2Bin {
 					break;
 				case REC_TYPE_EXTEND_LINEAR_ADDR:
 					// 04
-					// baseAddr = (getWord(line, indexInLine) << 16);
+					if (ifoffset) {
+						baseAddr = (getWord(line, indexInLine) << 16);
+					}
 					checksum += getByte(line, indexInLine);
 					checksum += getByte(line, indexInLine + 2);
 					indexInLine += 4;
