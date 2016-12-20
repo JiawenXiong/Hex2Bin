@@ -29,10 +29,11 @@ public class Hex2Bin {
 	private final static int REC_TYPE_EXTEND_LINEAR_ADDR = 4;
 	// Record type: Start Linear Address
 	private final static int REC_TYPE_START_LINEAR_ADDR = 5;
+	private final static String SYMBOL_NEWLINE = System.getProperty("line.separator");
 
 	public static void main(String[] args) {
 		if (args.length < 2 || args.length > 3) {
-			System.err.printf("usage: hex2bin in.hex out.bin [-offset]\n");
+			System.err.printf("usage: hex2bin.bat in.hex out.bin [-offset]\n");
 			System.exit(-1);
 		}
 		File inFile = new File(args[0]);
@@ -49,15 +50,17 @@ public class Hex2Bin {
 		int baseAddr = 0;
 		int addr = 0;
 		int recType = 0;
-		int b;
-		int startExecution = 0; // start address;
+		int dataByte;
+		int CS = 0;
+		int IP = 0;
+		int EIP = 0; // start address;
 		boolean ifoffset = false;
 		if (args[2].equals("-offset")) {
 			ifoffset = true;
 		}
 
 		// hashset
-		Set set = new HashSet<Integer>();
+		Set<String> set = new HashSet<String>();
 		try {
 			reader = new BufferedReader(new FileReader(inFile));
 			raf = new RandomAccessFile(outFile, "rw");
@@ -92,16 +95,16 @@ public class Hex2Bin {
 				recType = getByte(line, indexInLine);
 				checksum += recType;
 				indexInLine += 2;
-				set.add(recType);
+				set.add("0" + recType);
 				switch (recType) {
 				case REC_TYPE_DATA:
 					addr = (segAddr << 4) + baseAddr + addr;
 					for (int i = 0; i < numofBytes; i++) {
-						b = getByte(line, indexInLine);
-						checksum += b;
+						dataByte = getByte(line, indexInLine);
+						checksum += dataByte;
 						indexInLine += 2;
 						raf.seek(addr);
-						raf.writeByte(b);
+						raf.writeByte(dataByte);
 						addr++;
 					}
 					break;
@@ -112,6 +115,8 @@ public class Hex2Bin {
 					checksum += getByte(line, indexInLine);
 					checksum += getByte(line, indexInLine + 2);
 					indexInLine += 4;
+					System.out.printf("Line %d:The Segment Address changes into 0x%08x.%s", numofLine, segAddr,
+							SYMBOL_NEWLINE);
 					break;
 				case REC_TYPE_START_SEG_ADDR:
 					/*
@@ -120,9 +125,14 @@ public class Hex2Bin {
 					 * count is 04, the first two bytes are the CS value, the
 					 * latter two are the IP value.
 					 */
-					checksum += getByte(line, indexInLine);
-					checksum += getByte(line, indexInLine + 2);
+					CS = getByte(line, indexInLine);
+					checksum += CS;
+					IP = getByte(line, indexInLine + 2);
+					checksum += IP;
 					indexInLine += 4;
+
+					System.out.printf("Line %d:The CS change to 0x%08x.%s", numofLine, CS, SYMBOL_NEWLINE);
+					System.out.printf("Line %d:The IP change to 0x%08x.%s", numofLine, IP, SYMBOL_NEWLINE);
 					break;
 				case REC_TYPE_EXTEND_LINEAR_ADDR:
 					// 04
@@ -132,7 +142,8 @@ public class Hex2Bin {
 					checksum += getByte(line, indexInLine);
 					checksum += getByte(line, indexInLine + 2);
 					indexInLine += 4;
-					System.out.printf("Line %d:base address change to 0x%08x\n", numofLine, baseAddr);
+					System.out.printf("Line %d:The Linear Base Address changes into 0x%08x.%s", numofLine, baseAddr,
+							SYMBOL_NEWLINE);
 					break;
 				case REC_TYPE_START_LINEAR_ADDR:
 					// 05
@@ -140,15 +151,16 @@ public class Hex2Bin {
 					 * The four data bytes represent the 32-bit value loaded
 					 * into the EIP register of the 80386 and higher CPU.
 					 */
-					startExecution = (getWord(line, indexInLine) << 16) + getWord(line, indexInLine + 4);
+					EIP = (getWord(line, indexInLine) << 16) + getWord(line, indexInLine + 4);
 					checksum += getByte(line, indexInLine);
 					checksum += getByte(line, indexInLine + 2);
 					checksum += getByte(line, indexInLine + 4);
 					checksum += getByte(line, indexInLine + 6);
 					indexInLine += 8;
+					System.out.printf("Line %d:The EIP change to 0x%08x.%s", numofLine, EIP, SYMBOL_NEWLINE);
 					break;
 				default:
-					System.out.printf("Record type isn't in 0-4\n");
+					System.out.printf("Record type isn't in 0-5.%s", SYMBOL_NEWLINE);
 					break;
 				}
 
@@ -156,13 +168,11 @@ public class Hex2Bin {
 				// Checksum : the last character is checksum
 				byte actualChecksum = (byte) getByte(line, indexInLine);
 				if (checksum != actualChecksum) {
-					System.out.printf("Checksum mismatch on line %d: %02x vs %02x\n", numofLine, checksum,
-							actualChecksum);
+					System.out.printf("Checksum mismatch on line %d: %02x vs %02x.%s", numofLine, checksum,
+							actualChecksum, SYMBOL_NEWLINE);
 				}
 			}
-			if (startExecution >= 0)
-				System.out.printf("start execution at 0x%08X\n", startExecution);
-			System.out.printf("The following Record Type has emerged: %s.\n", set.toString());
+			System.out.printf("The following Record Types has emerged:%s %s", set.toString(), SYMBOL_NEWLINE);
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
@@ -174,7 +184,7 @@ public class Hex2Bin {
 					reader.close();
 				}
 			} catch (Exception e2) {
-				// TODO: handle exception
+				e2.printStackTrace();
 			}
 
 		}
